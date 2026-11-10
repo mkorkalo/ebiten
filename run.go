@@ -169,6 +169,11 @@ var (
 // SetScreenClearedEveryFrame enables or disables the clearing of the screen at the beginning of each frame.
 // The default value is true and the screen is cleared each frame by default.
 //
+// When the screen is not cleared every frame and Draw doesn't draw anything onto the screen, Ebitengine skips
+// presenting the screen to save GPU power. On desktops and mobiles, the skipping starts after a few such frames, until
+// every framebuffer has the screen. On browsers, it starts from the first such frame, so a game that draws only some
+// frames, e.g. every other frame to draw at half the display's refresh rate, presents only the frames it draws.
+//
 // SetScreenClearedEveryFrame is concurrent-safe.
 func SetScreenClearedEveryFrame(cleared bool) {
 	ui.Get().SetScreenClearedEveryFrame(cleared)

@@ -373,6 +373,19 @@ func (c *context) updateVsyncIgnored(frameTime, refreshInterval time.Duration) b
 	return true
 }
 
+// skipPresenting updates the number of successive frames that don't modify the offscreen, and reports whether
+// presenting the offscreen can be skipped in the current frame since the screen already shows it.
+func (c *context) skipPresenting(forceDraw bool) bool {
+	if !forceDraw && !c.isOffscreenModified {
+		if c.skipCount < maxSkipCount {
+			c.skipCount++
+		}
+	} else {
+		c.skipCount = 0
+	}
+	return c.skipCount >= maxSkipCount
+}
+
 func (c *context) newOffscreenImage(w, h int) *Image {
 	img := c.game.NewOffscreenImage(w, h)
 	img.modifyCallback = func() {
@@ -402,17 +415,7 @@ func (c *context) drawGame(graphicsDriver graphicsdriver.Graphics, ui *UserInter
 		c.offscreenDrawn = true
 	}
 
-	const maxSkipCount = 4
-
-	if !forceDraw && !c.isOffscreenModified {
-		if c.skipCount < maxSkipCount {
-			c.skipCount++
-		}
-	} else {
-		c.skipCount = 0
-	}
-
-	if c.skipCount >= maxSkipCount {
+	if c.skipPresenting(forceDraw) {
 		return false, nil
 	}
 

@@ -91,6 +91,18 @@ func VsyncIgnoredForTest(frameTimes []time.Duration, refreshInterval time.Durati
 	return ignored
 }
 
+// SkipPresentingForTest reports whether presenting is skipped in each of successive frames, given whether each frame
+// modifies the offscreen.
+func SkipPresentingForTest(modified []bool) []bool {
+	var c context
+	skipped := make([]bool, len(modified))
+	for i, m := range modified {
+		c.isOffscreenModified = m
+		skipped[i] = c.skipPresenting(false)
+	}
+	return skipped
+}
+
 func FlushCommandsAndWaitForTesting(driver graphicsdriver.Graphics, present bool) error {
 	var c context
 	return c.flushCommandsAndWait(true, present, driver, false, 60)

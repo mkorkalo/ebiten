@@ -15,6 +15,7 @@
 package ui_test
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -93,6 +94,73 @@ func TestVsyncIgnored(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			if got, want := ui.VsyncIgnoredForTest(c.frameTimes, refreshInterval), c.want; got != want {
 				t.Errorf("ui.VsyncIgnoredForTest(%d frames): got: %t, want: %t", len(c.frameTimes), got, want)
+			}
+		})
+	}
+}
+
+func TestSkipPresenting(t *testing.T) {
+	const (
+		m = true  // a frame modifying the offscreen
+		u = false // a frame not modifying the offscreen
+	)
+
+	cases := []struct {
+		name     string
+		modified []bool
+		// wantNotJS and wantJS are whether presenting each frame is skipped.
+		wantNotJS []bool
+		wantJS    []bool
+	}{
+		{
+			name:      "modified every frame",
+			modified:  []bool{m, m, m, m, m, m},
+			wantNotJS: []bool{false, false, false, false, false, false},
+			wantJS:    []bool{false, false, false, false, false, false},
+		},
+		{
+			name:      "modified once",
+			modified:  []bool{m, u, u, u, u, u},
+			wantNotJS: []bool{false, false, false, false, true, true},
+			wantJS:    []bool{false, true, true, true, true, true},
+		},
+		{
+			name:      "never modified",
+			modified:  []bool{u, u, u, u, u, u},
+			wantNotJS: []bool{false, false, false, true, true, true},
+			wantJS:    []bool{true, true, true, true, true, true},
+		},
+		{
+			name:      "modified every other frame",
+			modified:  []bool{m, u, m, u, m, u},
+			wantNotJS: []bool{false, false, false, false, false, false},
+			wantJS:    []bool{false, true, false, true, false, true},
+		},
+		{
+			name:      "modified every fourth frame",
+			modified:  []bool{m, u, u, u, m, u, u, u},
+			wantNotJS: []bool{false, false, false, false, false, false, false, false},
+			wantJS:    []bool{false, true, true, true, false, true, true, true},
+		},
+		{
+			name:      "modified again after skipping",
+			modified:  []bool{m, u, u, u, u, m, u},
+			wantNotJS: []bool{false, false, false, false, true, false, false},
+			wantJS:    []bool{false, true, true, true, true, false, true},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			want := c.wantNotJS
+			if runtime.GOOS == "js" {
+				want = c.wantJS
+			}
+			got := ui.SkipPresentingForTest(c.modified)
+			for i := range want {
+				if got[i] != want[i] {
+					t.Errorf("frame %d: got: %t, want: %t (all frames: got: %v, want: %v)", i, got[i], want[i], got, want)
+				}
 			}
 		})
 	}
